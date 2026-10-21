@@ -53,7 +53,9 @@ final class PostController
         $comments = $this->comments->findPublishedByPost((int) $post['id']);
 
         return View::render('public/post', [
-            'title' => (string) $post['title'],
+            'title' => (string) $post['title'] . ' — osr.blog.br',
+            'description' => (string) $post['summary'],
+            'ogImage' => (string) ($post['cover_image'] ?? ''),
             'post' => $post,
             'comments' => $comments,
             'csrfField' => $this->csrf->field(),

@@ -25,7 +25,8 @@ final class SearchController
 
         if ($query === '') {
             return View::render('public/search', [
-                'title' => 'Busca',
+                'title' => 'Busca — osr.blog.br',
+                'description' => 'Busca no blog.',
                 'query' => '',
                 'posts' => [],
                 'paginator' => new Paginator(0, 1),
@@ -42,8 +43,14 @@ final class SearchController
 
         $posts = $this->posts->searchPublished($query, $paginator->limit(), $paginator->offset());
 
+        $title = 'Busca: ' . $query . ' — osr.blog.br';
+        if ($paginator->currentPage() > 1) {
+            $title .= ' — Página ' . $paginator->currentPage();
+        }
+
         return View::render('public/search', [
-            'title' => 'Busca: ' . $query,
+            'title' => $title,
+            'description' => 'Resultados da busca para "' . $query . '".',
             'query' => $query,
             'posts' => $posts,
             'paginator' => $paginator,

@@ -38,6 +38,17 @@ final class PostRepository
         return (int) $this->pdo->query($sql)->fetchColumn();
     }
 
+    // Lista todos os posts publicados (para sitemap), sem paginação.
+    public function findAllPublished(): array
+    {
+        $sql = 'SELECT id, title, slug, summary, published_at, updated_at
+                FROM posts
+                WHERE published_at IS NOT NULL AND published_at <= NOW()
+                ORDER BY published_at DESC';
+
+        return $this->fetchAll($sql, []);
+    }
+
     // Busca um post pelo slug atual (qualquer status).
     public function findBySlug(string $slug): ?array
     {

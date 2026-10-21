@@ -9,9 +9,12 @@ use App\Controllers\Admin\DashboardController;
 use App\Controllers\Admin\PostController as AdminPostController;
 use App\Controllers\CategoryController;
 use App\Controllers\CommentController;
+use App\Controllers\FeedController;
 use App\Controllers\HomeController;
 use App\Controllers\PostController;
+use App\Controllers\RobotsController;
 use App\Controllers\SearchController;
+use App\Controllers\SitemapController;
 use App\Core\Csrf;
 use App\Core\Database;
 use App\Core\Request;
@@ -50,6 +53,9 @@ return function (Router $router, AuthMiddleware $auth, Session $session): void {
     $categoryController = new CategoryController($categoryRepository, $postRepository);
     $searchController = new SearchController($postRepository);
     $commentController = new CommentController($commentRepository, $postRepository, $session);
+    $sitemapController = new SitemapController($postRepository, $categoryRepository);
+    $feedController = new FeedController($postRepository);
+    $robotsController = new RobotsController();
 
     // Infraestrutura e controllers da área administrativa.
     $userRepository = new UserRepository($pdo);
@@ -97,12 +103,12 @@ return function (Router $router, AuthMiddleware $auth, Session $session): void {
         return new Response($content === false ? '' : $content, 200, ['Content-Type' => $mime]);
     });
 
-    // Comentário público e SEO (Fase 6): SEO ainda como closures provisórias.
+    // Comentário público e SEO.
     $router->post('/post/{slug}/comentar', [$commentController, 'store']);
-    $router->get('/sitemap.xml', fn(Request $request) => Response::make('Rota /sitemap.xml acessada'));
-    $router->get('/feed', fn(Request $request) => Response::make('Rota /feed acessada'));
-    $router->get('/rss.xml', fn(Request $request) => Response::make('Rota /rss.xml acessada'));
-    $router->get('/robots.txt', fn(Request $request) => Response::make('Rota /robots.txt acessada'));
+    $router->get('/sitemap.xml', [$sitemapController, 'index']);
+    $router->get('/feed', [$feedController, 'index']);
+    $router->get('/rss.xml', [$feedController, 'index']);
+    $router->get('/robots.txt', [$robotsController, 'index']);
 
     // ------------------------------------------------------------------
     // Rotas administrativas

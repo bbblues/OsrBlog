@@ -30,8 +30,14 @@ final class HomeController
 
         $posts = $this->posts->findPublished($paginator->limit(), $paginator->offset());
 
+        $title = 'osr.blog.br';
+        if ($paginator->currentPage() > 1) {
+            $title .= ' — Página ' . $paginator->currentPage();
+        }
+
         return View::render('public/home', [
-            'title' => 'osr.blog.br',
+            'title' => $title,
+            'description' => 'Blog pessoal sobre RPG analógico (movimento OSR).',
             'posts' => $posts,
             'paginator' => $paginator,
             'baseUrl' => '/',

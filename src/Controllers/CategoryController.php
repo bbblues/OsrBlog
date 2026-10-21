@@ -39,8 +39,14 @@ final class CategoryController
 
         $posts = $this->posts->findPublishedByCategory($slug, $paginator->limit(), $paginator->offset());
 
+        $title = (string) $category['name'] . ' — osr.blog.br';
+        if ($paginator->currentPage() > 1) {
+            $title .= ' — Página ' . $paginator->currentPage();
+        }
+
         return View::render('public/category', [
-            'title' => (string) $category['name'],
+            'title' => $title,
+            'description' => 'Posts publicados na categoria ' . $category['name'] . '.',
             'category' => $category,
             'posts' => $posts,
             'paginator' => $paginator,
