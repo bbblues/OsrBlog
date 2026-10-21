@@ -1,0 +1,5 @@
+# Impede a listagem de diretórios.
+Options -Indexes
+
+# Define o arquivo padrão servido para o diretório.
+DirectoryIndex index.php

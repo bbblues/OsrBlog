@@ -1,0 +1,32 @@
+# Ambiente de desenvolvimento local do blog (Docker Compose).
+# Fase 0: aplicação PHP/Apache + banco MySQL.
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: osr_app
+    ports:
+      - "8080:80"
+    volumes:
+      - .:/var/www/html
+    depends_on:
+      - mysql
+    restart: unless-stopped
+
+  mysql:
+    image: mysql:8.0
+    container_name: osr_mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: osr_blog
+      MYSQL_USER: osr
+      MYSQL_PASSWORD: changeme
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    restart: unless-stopped
+
+volumes:
+  mysql_data:

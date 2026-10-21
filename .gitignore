@@ -1,0 +1,19 @@
+# Dependências do Composer
+/vendor/
+
+# Arquivo de ambiente local (contém segredos)
+.env
+
+# Arquivos gerados em tempo de execução
+/storage/logs/*
+/storage/uploads/*
+/storage/backups/*
+!/storage/logs/.gitkeep
+!/storage/uploads/.gitkeep
+!/storage/backups/.gitkeep
+
+# Sistema operacional e IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

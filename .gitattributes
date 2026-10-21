@@ -1,0 +1,3 @@
+# Garante que scripts shell usem quebras de linha LF,
+# evitando o erro "no such file or directory" ao executá-los no Linux.
+*.sh text eol=lf
