@@ -143,6 +143,126 @@ final class PostRepository
     }
 
     // ------------------------------------------------------------------
+    // Métodos administrativos (CRUD)
+    // ------------------------------------------------------------------
+
+    // Lista todos os posts (qualquer status), do mais recente ao mais antigo.
+    public function findAll(int $limit, int $offset): array
+    {
+        $sql = 'SELECT id, title, slug, summary, cover_image, published_at, created_at, updated_at
+                FROM posts
+                ORDER BY id DESC
+                LIMIT :limit OFFSET :offset';
+
+        return $this->withCategories($this->fetchAll($sql, [
+            'limit' => $limit,
+            'offset' => $offset,
+        ]));
+    }
+
+    public function countAll(): int
+    {
+        return (int) $this->pdo->query('SELECT COUNT(*) FROM posts')->fetchColumn();
+    }
+
+    public function countDrafts(): int
+    {
+        return (int) $this->pdo->query('SELECT COUNT(*) FROM posts WHERE published_at IS NULL')->fetchColumn();
+    }
+
+    public function countScheduled(): int
+    {
+        return (int) $this->pdo->query('SELECT COUNT(*) FROM posts WHERE published_at IS NOT NULL AND published_at > NOW()')->fetchColumn();
+    }
+
+    // Busca um post pelo id (com categorias).
+    public function findById(int $id): ?array
+    {
+        $sql = 'SELECT id, title, slug, summary, body_md, cover_image, published_at, created_at, updated_at
+                FROM posts
+                WHERE id = :id
+                LIMIT 1';
+
+        $post = $this->fetchOne($sql, ['id' => $id]);
+
+        return $post === null ? null : $this->withCategories([$post])[0];
+    }
+
+    // Cria um post e associa as categorias; retorna o id gerado.
+    public function create(array $data, array $categoryIds): int
+    {
+        $sql = 'INSERT INTO posts (title, slug, summary, body_md, cover_image, published_at, created_at, updated_at)
+                VALUES (:title, :slug, :summary, :body_md, :cover_image, :published_at, NOW(), NULL)';
+
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute([
+            'title' => $data['title'],
+            'slug' => $data['slug'],
+            'summary' => $data['summary'],
+            'body_md' => $data['body_md'],
+            'cover_image' => $data['cover_image'],
+            'published_at' => $data['published_at'],
+        ]);
+
+        $id = (int) $this->pdo->lastInsertId();
+        $this->syncCategories($id, $categoryIds);
+
+        return $id;
+    }
+
+    // Atualiza um post e sincroniza as categorias.
+    public function update(int $id, array $data, array $categoryIds): void
+    {
+        $sql = 'UPDATE posts
+                SET title = :title, slug = :slug, summary = :summary, body_md = :body_md,
+                    cover_image = :cover_image, published_at = :published_at, updated_at = NOW()
+                WHERE id = :id';
+
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute([
+            'title' => $data['title'],
+            'slug' => $data['slug'],
+            'summary' => $data['summary'],
+            'body_md' => $data['body_md'],
+            'cover_image' => $data['cover_image'],
+            'published_at' => $data['published_at'],
+            'id' => $id,
+        ]);
+
+        $this->syncCategories($id, $categoryIds);
+    }
+
+    public function delete(int $id): void
+    {
+        $stmt = $this->pdo->prepare('DELETE FROM posts WHERE id = :id');
+        $stmt->execute(['id' => $id]);
+    }
+
+    // Sincroniza as categorias de um post (remove e reinsere).
+    public function syncCategories(int $postId, array $categoryIds): void
+    {
+        $stmt = $this->pdo->prepare('DELETE FROM post_category WHERE post_id = :post_id');
+        $stmt->execute(['post_id' => $postId]);
+
+        if ($categoryIds === []) {
+            return;
+        }
+
+        $sql = 'INSERT INTO post_category (post_id, category_id) VALUES (:post_id, :category_id)';
+        $stmt = $this->pdo->prepare($sql);
+        foreach ($categoryIds as $categoryId) {
+            $stmt->execute(['post_id' => $postId, 'category_id' => $categoryId]);
+        }
+    }
+
+    // Registra um slug antigo no histórico (para redirecionamento 301).
+    public function saveSlugHistory(int $postId, string $oldSlug): void
+    {
+        $stmt = $this->pdo->prepare('INSERT INTO post_slug_history (post_id, old_slug, created_at) VALUES (:post_id, :old_slug, NOW())');
+        $stmt->execute(['post_id' => $postId, 'old_slug' => $oldSlug]);
+    }
+
+    // ------------------------------------------------------------------
     // Helpers internos
     // ------------------------------------------------------------------
 

@@ -98,4 +98,18 @@ final class Session
 
         return $value;
     }
+
+    // Retorna (e remove) todas as mensagens flash da sessão.
+    public function allFlash(): array
+    {
+        $messages = [];
+        foreach (array_keys($_SESSION) as $key) {
+            if (str_starts_with((string) $key, '_flash_')) {
+                $type = substr((string) $key, 7);
+                $messages[$type] = $this->flash($type);
+            }
+        }
+
+        return $messages;
+    }
 }

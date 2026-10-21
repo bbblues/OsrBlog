@@ -2,10 +2,14 @@
 
 declare(strict_types=1);
 
+use App\Controllers\Admin\AuthController;
+use App\Controllers\Admin\DashboardController;
+use App\Controllers\Admin\PostController as AdminPostController;
 use App\Controllers\CategoryController;
 use App\Controllers\HomeController;
 use App\Controllers\PostController;
 use App\Controllers\SearchController;
+use App\Core\Csrf;
 use App\Core\Database;
 use App\Core\Request;
 use App\Core\Response;
@@ -14,7 +18,10 @@ use App\Core\Session;
 use App\Middleware\AuthMiddleware;
 use App\Models\CategoryRepository;
 use App\Models\PostRepository;
+use App\Models\UserRepository;
+use App\Support\ImageUpload;
 use App\Support\Markdown;
+use App\Support\Slugger;
 
 /**
  * Tabela de rotas da aplicação.
@@ -35,6 +42,23 @@ return function (Router $router, AuthMiddleware $auth, Session $session): void {
     $categoryController = new CategoryController($categoryRepository, $postRepository);
     $searchController = new SearchController($postRepository);
 
+    // Infraestrutura e controllers da área administrativa.
+    $userRepository = new UserRepository($pdo);
+    $slugger = new Slugger($pdo);
+    $imageUpload = new ImageUpload(dirname(__DIR__) . '/storage/uploads');
+    $csrf = new Csrf($session);
+
+    $authController = new AuthController($userRepository, $session, $csrf);
+    $dashboardController = new DashboardController($postRepository, $session, $csrf);
+    $adminPostController = new AdminPostController(
+        $postRepository,
+        $categoryRepository,
+        $slugger,
+        $imageUpload,
+        $session,
+        $csrf
+    );
+
     // ------------------------------------------------------------------
     // Rotas públicas
     // ------------------------------------------------------------------
@@ -42,6 +66,28 @@ return function (Router $router, AuthMiddleware $auth, Session $session): void {
     $router->get('/post/{slug}', [$postController, 'show']);
     $router->get('/categoria/{slug}', [$categoryController, 'show']);
     $router->get('/busca', [$searchController, 'index']);
+
+    // Serve as imagens enviadas via upload (storage/uploads), com validação de path.
+    $router->get('/uploads/{filename}', function (Request $request, string $filename): Response {
+        $base = realpath(dirname(__DIR__) . '/storage/uploads');
+        if ($base === false) {
+            return Response::notFound();
+        }
+
+        $path = realpath($base . DIRECTORY_SEPARATOR . $filename);
+        if ($path === false || !str_starts_with($path, $base . DIRECTORY_SEPARATOR)) {
+            return Response::notFound();
+        }
+
+        $mime = (new \finfo(FILEINFO_MIME_TYPE))->file($path);
+        if (!is_string($mime) || !str_starts_with($mime, 'image/')) {
+            return Response::notFound();
+        }
+
+        $content = file_get_contents($path);
+
+        return new Response($content === false ? '' : $content, 200, ['Content-Type' => $mime]);
+    });
 
     // Comentários (Fase 5) e SEO (Fase 6): ainda como closures provisórias.
     $router->post('/post/{slug}/comentar', fn(Request $request, string $slug) => Response::make('Rota POST /post/' . htmlspecialchars($slug, ENT_QUOTES, 'UTF-8') . '/comentar acessada'));
@@ -54,20 +100,20 @@ return function (Router $router, AuthMiddleware $auth, Session $session): void {
     // Rotas administrativas
     // ------------------------------------------------------------------
     // Autenticação (sem AuthMiddleware).
-    $router->get('/admin/login', fn(Request $request) => Response::make('Rota /admin/login acessada'));
-    $router->post('/admin/login', fn(Request $request) => Response::make('Rota POST /admin/login acessada'));
-    $router->post('/admin/logout', fn(Request $request) => Response::make('Rota POST /admin/logout acessada'));
+    $router->get('/admin/login', [$authController, 'form']);
+    $router->post('/admin/login', [$authController, 'login']);
+    $router->post('/admin/logout', [$authController, 'logout']);
 
     // Áreas protegidas (com AuthMiddleware).
-    $router->get('/admin', fn(Request $request) => Response::make('Rota /admin (dashboard) acessada'), [$auth, 'handle']);
+    $router->get('/admin', [$dashboardController, 'index'], [$auth, 'handle']);
 
     // Posts (CRUD).
-    $router->get('/admin/posts', fn(Request $request) => Response::make('Rota /admin/posts acessada'), [$auth, 'handle']);
-    $router->get('/admin/posts/criar', fn(Request $request) => Response::make('Rota /admin/posts/criar acessada'), [$auth, 'handle']);
-    $router->post('/admin/posts', fn(Request $request) => Response::make('Rota POST /admin/posts acessada'), [$auth, 'handle']);
-    $router->get('/admin/posts/{id}/editar', fn(Request $request, string $id) => Response::make('Rota /admin/posts/' . htmlspecialchars($id, ENT_QUOTES, 'UTF-8') . '/editar acessada'), [$auth, 'handle']);
-    $router->post('/admin/posts/{id}', fn(Request $request, string $id) => Response::make('Rota POST /admin/posts/' . htmlspecialchars($id, ENT_QUOTES, 'UTF-8') . ' acessada'), [$auth, 'handle']);
-    $router->post('/admin/posts/{id}/excluir', fn(Request $request, string $id) => Response::make('Rota POST /admin/posts/' . htmlspecialchars($id, ENT_QUOTES, 'UTF-8') . '/excluir acessada'), [$auth, 'handle']);
+    $router->get('/admin/posts', [$adminPostController, 'index'], [$auth, 'handle']);
+    $router->get('/admin/posts/criar', [$adminPostController, 'form'], [$auth, 'handle']);
+    $router->post('/admin/posts', [$adminPostController, 'store'], [$auth, 'handle']);
+    $router->get('/admin/posts/{id}/editar', [$adminPostController, 'form'], [$auth, 'handle']);
+    $router->post('/admin/posts/{id}', [$adminPostController, 'update'], [$auth, 'handle']);
+    $router->post('/admin/posts/{id}/excluir', [$adminPostController, 'destroy'], [$auth, 'handle']);
 
     // Categorias (CRUD).
     $router->get('/admin/categorias', fn(Request $request) => Response::make('Rota /admin/categorias acessada'), [$auth, 'handle']);
