@@ -70,7 +70,7 @@ final class Router
             }
         }
 
-        $result = ($route['handler'])(...$route['params']);
+        $result = ($route['handler'])($request, ...$route['params']);
 
         if ($result instanceof Response) {
             return $result;

@@ -39,6 +39,13 @@ final class Response
         return $this->statusCode;
     }
 
+    public function setStatusCode(int $statusCode): self
+    {
+        $this->statusCode = $statusCode;
+
+        return $this;
+    }
+
     public function content(): string
     {
         return $this->content;

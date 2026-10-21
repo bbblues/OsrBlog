@@ -19,20 +19,23 @@ final class View
         return new self(dirname(__DIR__, 2) . '/views');
     }
 
-    // Renderiza um template com os dados fornecidos e retorna uma Response.
+    // Renderiza o template de conteúdo e o envolve no layout base.
     public static function render(string $template, array $data = []): Response
     {
-        return self::make()->response($template, $data);
-    }
+        $view = self::make();
+        $content = $view->renderTemplate($template, $data);
+        $html = $view->renderTemplate('layout', array_merge($data, ['content' => $content]));
 
-    // Renderiza o template e devolve o HTML dentro de uma Response.
-    public function response(string $template, array $data = []): Response
-    {
-        return new Response($this->renderTemplate($template, $data));
+        return new Response($html);
     }
 
     private function renderTemplate(string $template, array $data): string
     {
+        // Aceita templates com ou sem a extensão .php.
+        if (!str_ends_with($template, '.php')) {
+            $template .= '.php';
+        }
+
         $file = rtrim($this->viewsPath, '/\\') . DIRECTORY_SEPARATOR . $template;
 
         if (!is_file($file)) {

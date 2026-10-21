@@ -27,7 +27,7 @@ $router = new Router();
 $router->addGlobalMiddleware([$csrfMiddleware, 'handle']);
 
 $routes = require dirname(__DIR__) . '/src/routes.php';
-$routes($router, $authMiddleware);
+$routes($router, $authMiddleware, $session);
 
 // Despacha a requisição e envia a resposta ao cliente.
 $request = Request::fromGlobals();
