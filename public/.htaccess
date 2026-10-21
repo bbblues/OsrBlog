@@ -4,17 +4,38 @@ Options -Indexes
 # Define o arquivo padrão do diretório.
 DirectoryIndex index.php
 
-# Front Controller: encaminha requisições que não correspondem a arquivos ou
-# diretórios existentes para o index.php.
+# Headers de segurança.
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+    Header set X-Frame-Options "DENY"
+    Header set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
+
+# Força HTTPS (exceto em localhost/desenvolvimento local) e encaminha as
+# requisições para o index.php (Front Controller).
 <IfModule mod_rewrite.c>
     RewriteEngine On
+
+    # Redireciona HTTP -> HTTPS, a menos que o host seja localhost ou 127.0.0.1.
+    RewriteCond %{HTTPS} off
+    RewriteCond %{HTTP_HOST} !^localhost [NC]
+    RewriteCond %{HTTP_HOST} !^127\.0\.0\.1 [NC]
+    RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+    # Front Controller: se não for arquivo/diretório existente, vai para o index.php.
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteRule ^ index.php [L]
 </IfModule>
 
-# Bloqueia o acesso a arquivos sensíveis (defesa em profundidade).
-<FilesMatch "^(\.env|\.env\.example|composer\.(json|lock))$">
+# Bloqueia o acesso a arquivos ocultos (que começam com ponto) — defesa em profundidade.
+<FilesMatch "^\.">
     Require all denied
 </FilesMatch>
+
+# Bloqueia o acesso aos arquivos do Composer.
+<FilesMatch "^(composer\.(json|lock))$">
+    Require all denied
+</FilesMatch>
+
 

@@ -11,8 +11,11 @@ RUN apt-get update \
     && docker-php-ext-install zip pdo_mysql \
     && rm -rf /var/lib/apt/lists/*
 
-# Habilita o mod_rewrite do Apache (roteamento das fases seguintes).
-RUN a2enmod rewrite
+# Habilita os módulos do Apache necessários:
+# - rewrite: roteamento via .htaccess (Front Controller);
+# - headers: headers de segurança (X-Content-Type-Options, X-Frame-Options, Referrer-Policy).
+RUN a2enmod rewrite \
+    && a2enmod headers
 
 # Define a pasta public/ como DocumentRoot do Apache.
 ENV APACHE_DOCUMENT_ROOT=/var/www/html/public
