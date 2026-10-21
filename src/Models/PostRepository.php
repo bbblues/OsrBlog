@@ -160,6 +160,12 @@ final class PostRepository
         ]));
     }
 
+    // Lista id e título de todos os posts (para dropdowns de filtro).
+    public function findAllTitles(): array
+    {
+        return $this->pdo->query('SELECT id, title FROM posts ORDER BY id DESC')->fetchAll();
+    }
+
     public function countAll(): int
     {
         return (int) $this->pdo->query('SELECT COUNT(*) FROM posts')->fetchColumn();

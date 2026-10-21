@@ -3,9 +3,12 @@
 declare(strict_types=1);
 
 use App\Controllers\Admin\AuthController;
+use App\Controllers\Admin\CategoryController as AdminCategoryController;
+use App\Controllers\Admin\CommentController as AdminCommentController;
 use App\Controllers\Admin\DashboardController;
 use App\Controllers\Admin\PostController as AdminPostController;
 use App\Controllers\CategoryController;
+use App\Controllers\CommentController;
 use App\Controllers\HomeController;
 use App\Controllers\PostController;
 use App\Controllers\SearchController;
@@ -17,6 +20,7 @@ use App\Core\Router;
 use App\Core\Session;
 use App\Middleware\AuthMiddleware;
 use App\Models\CategoryRepository;
+use App\Models\CommentRepository;
 use App\Models\PostRepository;
 use App\Models\UserRepository;
 use App\Support\ImageUpload;
@@ -34,19 +38,21 @@ return function (Router $router, AuthMiddleware $auth, Session $session): void {
     $pdo = Database::getInstance()->getPdo();
     $postRepository = new PostRepository($pdo);
     $categoryRepository = new CategoryRepository($pdo);
+    $commentRepository = new CommentRepository($pdo);
     $markdown = new Markdown();
-
-    // Controllers da área pública.
-    $homeController = new HomeController($postRepository);
-    $postController = new PostController($postRepository, $markdown, $session);
-    $categoryController = new CategoryController($categoryRepository, $postRepository);
-    $searchController = new SearchController($postRepository);
-
-    // Infraestrutura e controllers da área administrativa.
-    $userRepository = new UserRepository($pdo);
     $slugger = new Slugger($pdo);
     $imageUpload = new ImageUpload(dirname(__DIR__) . '/storage/uploads');
     $csrf = new Csrf($session);
+
+    // Controllers da área pública.
+    $homeController = new HomeController($postRepository);
+    $postController = new PostController($postRepository, $markdown, $session, $commentRepository, $csrf);
+    $categoryController = new CategoryController($categoryRepository, $postRepository);
+    $searchController = new SearchController($postRepository);
+    $commentController = new CommentController($commentRepository, $postRepository, $session);
+
+    // Infraestrutura e controllers da área administrativa.
+    $userRepository = new UserRepository($pdo);
 
     $authController = new AuthController($userRepository, $session, $csrf);
     $dashboardController = new DashboardController($postRepository, $session, $csrf);
@@ -58,6 +64,8 @@ return function (Router $router, AuthMiddleware $auth, Session $session): void {
         $session,
         $csrf
     );
+    $adminCategoryController = new AdminCategoryController($categoryRepository, $slugger, $session, $csrf);
+    $adminCommentController = new AdminCommentController($commentRepository, $postRepository, $session, $csrf);
 
     // ------------------------------------------------------------------
     // Rotas públicas
@@ -89,8 +97,8 @@ return function (Router $router, AuthMiddleware $auth, Session $session): void {
         return new Response($content === false ? '' : $content, 200, ['Content-Type' => $mime]);
     });
 
-    // Comentários (Fase 5) e SEO (Fase 6): ainda como closures provisórias.
-    $router->post('/post/{slug}/comentar', fn(Request $request, string $slug) => Response::make('Rota POST /post/' . htmlspecialchars($slug, ENT_QUOTES, 'UTF-8') . '/comentar acessada'));
+    // Comentário público e SEO (Fase 6): SEO ainda como closures provisórias.
+    $router->post('/post/{slug}/comentar', [$commentController, 'store']);
     $router->get('/sitemap.xml', fn(Request $request) => Response::make('Rota /sitemap.xml acessada'));
     $router->get('/feed', fn(Request $request) => Response::make('Rota /feed acessada'));
     $router->get('/rss.xml', fn(Request $request) => Response::make('Rota /rss.xml acessada'));
@@ -116,17 +124,16 @@ return function (Router $router, AuthMiddleware $auth, Session $session): void {
     $router->post('/admin/posts/{id}/excluir', [$adminPostController, 'destroy'], [$auth, 'handle']);
 
     // Categorias (CRUD).
-    $router->get('/admin/categorias', fn(Request $request) => Response::make('Rota /admin/categorias acessada'), [$auth, 'handle']);
-    $router->get('/admin/categorias/criar', fn(Request $request) => Response::make('Rota /admin/categorias/criar acessada'), [$auth, 'handle']);
-    $router->post('/admin/categorias', fn(Request $request) => Response::make('Rota POST /admin/categorias acessada'), [$auth, 'handle']);
-    $router->get('/admin/categorias/{id}/editar', fn(Request $request, string $id) => Response::make('Rota /admin/categorias/' . htmlspecialchars($id, ENT_QUOTES, 'UTF-8') . '/editar acessada'), [$auth, 'handle']);
-    $router->post('/admin/categorias/{id}', fn(Request $request, string $id) => Response::make('Rota POST /admin/categorias/' . htmlspecialchars($id, ENT_QUOTES, 'UTF-8') . ' acessada'), [$auth, 'handle']);
-    $router->post('/admin/categorias/{id}/excluir', fn(Request $request, string $id) => Response::make('Rota POST /admin/categorias/' . htmlspecialchars($id, ENT_QUOTES, 'UTF-8') . '/excluir acessada'), [$auth, 'handle']);
+    $router->get('/admin/categorias', [$adminCategoryController, 'index'], [$auth, 'handle']);
+    $router->post('/admin/categorias', [$adminCategoryController, 'store'], [$auth, 'handle']);
+    $router->post('/admin/categorias/{id}', [$adminCategoryController, 'update'], [$auth, 'handle']);
+    $router->post('/admin/categorias/{id}/excluir', [$adminCategoryController, 'destroy'], [$auth, 'handle']);
 
     // Comentários (moderação).
-    $router->get('/admin/comentarios', fn(Request $request) => Response::make('Rota /admin/comentarios acessada'), [$auth, 'handle']);
-    $router->post('/admin/comentarios/{id}/aprovar', fn(Request $request, string $id) => Response::make('Rota POST /admin/comentarios/' . htmlspecialchars($id, ENT_QUOTES, 'UTF-8') . '/aprovar acessada'), [$auth, 'handle']);
-    $router->post('/admin/comentarios/{id}/excluir', fn(Request $request, string $id) => Response::make('Rota POST /admin/comentarios/' . htmlspecialchars($id, ENT_QUOTES, 'UTF-8') . '/excluir acessada'), [$auth, 'handle']);
+    $router->get('/admin/comentarios', [$adminCommentController, 'index'], [$auth, 'handle']);
+    $router->post('/admin/comentarios/batch', [$adminCommentController, 'batch'], [$auth, 'handle']);
+    $router->post('/admin/comentarios/{id}/status', [$adminCommentController, 'status'], [$auth, 'handle']);
+    $router->post('/admin/comentarios/{id}/excluir', [$adminCommentController, 'destroy'], [$auth, 'handle']);
 
     // Estatísticas e backup.
     $router->get('/admin/estatisticas', fn(Request $request) => Response::make('Rota /admin/estatisticas acessada'), [$auth, 'handle']);

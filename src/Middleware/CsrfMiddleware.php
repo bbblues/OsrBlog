@@ -31,6 +31,6 @@ final class CsrfMiddleware
             return null;
         }
 
-        return new Response('Falha na validação CSRF (token ausente ou inválido).', 403);
+        return new Response('Falha na validação CSRF (token ausente ou inválido). Recarregue a página e tente novamente.', 403);
     }
 }

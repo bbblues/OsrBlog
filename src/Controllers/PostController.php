@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
+use App\Core\Csrf;
 use App\Core\Request;
 use App\Core\Response;
 use App\Core\Session;
 use App\Core\View;
+use App\Models\CommentRepository;
 use App\Models\PostRepository;
 use App\Support\Markdown;
 
@@ -19,7 +21,9 @@ final class PostController
     public function __construct(
         private PostRepository $posts,
         private Markdown $markdown,
-        private Session $session
+        private Session $session,
+        private CommentRepository $comments,
+        private Csrf $csrf
     ) {
     }
 
@@ -46,10 +50,13 @@ final class PostController
         }
 
         $post['body_html'] = $this->markdown->toHtml((string) $post['body_md']);
+        $comments = $this->comments->findPublishedByPost((int) $post['id']);
 
         return View::render('public/post', [
             'title' => (string) $post['title'],
             'post' => $post,
+            'comments' => $comments,
+            'csrfField' => $this->csrf->field(),
         ]);
     }
 

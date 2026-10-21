@@ -21,3 +21,44 @@
         <?= $post['body_html'] ?>
     </div>
 </article>
+
+<section class="mt-5" id="comentarios">
+    <h2 class="h4 mb-3">Comentários</h2>
+
+    <?php if (empty($comments)): ?>
+        <p class="text-muted">Seja o primeiro a comentar.</p>
+    <?php else: ?>
+        <?php foreach ($comments as $comment): ?>
+            <div class="card mb-3" id="comentario-<?= (int) $comment['id'] ?>">
+                <div class="card-body">
+                    <p class="mb-1"><strong><?= htmlspecialchars((string) $comment['author_name'], ENT_QUOTES, 'UTF-8') ?></strong></p>
+                    <p class="text-muted small mb-2"><?= date('d/m/Y H:i', strtotime((string) $comment['created_at'])) ?></p>
+                    <p class="mb-0"><?= nl2br(htmlspecialchars((string) $comment['body'], ENT_QUOTES, 'UTF-8')) ?></p>
+                </div>
+            </div>
+        <?php endforeach; ?>
+    <?php endif; ?>
+
+    <div class="card mt-4" id="comentar">
+        <div class="card-body">
+            <h3 class="h5 mb-3">Deixe um comentário</h3>
+            <form method="post" action="/post/<?= htmlspecialchars((string) $post['slug'], ENT_QUOTES, 'UTF-8') ?>/comentar">
+                <?= $csrfField ?>
+                <div class="mb-3" style="display:none" aria-hidden="true">
+                    <label for="website">Website (não preencha)</label>
+                    <input type="text" name="website" id="website" tabindex="-1" autocomplete="off">
+                </div>
+                <div class="mb-3">
+                    <label for="author_name" class="form-label">Nome</label>
+                    <input type="text" name="author_name" id="author_name" class="form-control" maxlength="80" required>
+                </div>
+                <div class="mb-3">
+                    <label for="body" class="form-label">Comentário</label>
+                    <textarea name="body" id="body" class="form-control" rows="4" required></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary">Enviar comentário</button>
+            </form>
+        </div>
+    </div>
+</section>
+
