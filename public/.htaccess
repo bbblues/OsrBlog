@@ -1,5 +1,20 @@
 # Impede a listagem de diretórios.
 Options -Indexes
 
-# Define o arquivo padrão servido para o diretório.
+# Define o arquivo padrão do diretório.
 DirectoryIndex index.php
+
+# Front Controller: encaminha requisições que não correspondem a arquivos ou
+# diretórios existentes para o index.php.
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^ index.php [L]
+</IfModule>
+
+# Bloqueia o acesso a arquivos sensíveis (defesa em profundidade).
+<FilesMatch "^(\.env|\.env\.example|composer\.(json|lock))$">
+    Require all denied
+</FilesMatch>
+
