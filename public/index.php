@@ -9,6 +9,7 @@ use App\Core\Router;
 use App\Core\Session;
 use App\Middleware\AuthMiddleware;
 use App\Middleware\CsrfMiddleware;
+use App\Support\Analytics;
 
 // Front controller: todas as requisições HTTP entram por aqui.
 require_once dirname(__DIR__) . '/config.php';
@@ -26,6 +27,9 @@ $csrfMiddleware = new CsrfMiddleware($csrf);
 $router = new Router();
 $router->addGlobalMiddleware([$csrfMiddleware, 'handle']);
 
+// Analytics (registra acessos públicos em TSV, sem banco de dados).
+$analytics = new Analytics(dirname(__DIR__) . '/storage/logs', $_ENV['ANALYTICS_IP_SALT'] ?? '');
+
 $routes = require dirname(__DIR__) . '/src/routes.php';
 $routes($router, $authMiddleware, $session);
 
@@ -42,4 +46,7 @@ try {
 }
 
 $response->send();
+
+// Hook de analytics (somente GET público com status 200/301/404).
+$analytics->track($response->statusCode());
 

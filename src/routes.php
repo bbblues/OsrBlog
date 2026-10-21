@@ -3,10 +3,12 @@
 declare(strict_types=1);
 
 use App\Controllers\Admin\AuthController;
+use App\Controllers\Admin\BackupController as AdminBackupController;
 use App\Controllers\Admin\CategoryController as AdminCategoryController;
 use App\Controllers\Admin\CommentController as AdminCommentController;
 use App\Controllers\Admin\DashboardController;
 use App\Controllers\Admin\PostController as AdminPostController;
+use App\Controllers\Admin\StatsController;
 use App\Controllers\CategoryController;
 use App\Controllers\CommentController;
 use App\Controllers\FeedController;
@@ -26,6 +28,8 @@ use App\Models\CategoryRepository;
 use App\Models\CommentRepository;
 use App\Models\PostRepository;
 use App\Models\UserRepository;
+use App\Support\Analytics;
+use App\Support\Backup;
 use App\Support\ImageUpload;
 use App\Support\Markdown;
 use App\Support\Slugger;
@@ -47,6 +51,22 @@ return function (Router $router, AuthMiddleware $auth, Session $session): void {
     $imageUpload = new ImageUpload(dirname(__DIR__) . '/storage/uploads');
     $csrf = new Csrf($session);
 
+    // Analytics e backup.
+    $analytics = new Analytics(dirname(__DIR__) . '/storage/logs', $_ENV['ANALYTICS_IP_SALT'] ?? '');
+    $backup = new Backup(
+        dirname(__DIR__) . '/storage/backups',
+        dirname(__DIR__) . '/storage/uploads',
+        dirname(__DIR__) . '/storage/logs',
+        $pdo,
+        [
+            'host' => DB_HOST,
+            'port' => DB_PORT,
+            'name' => DB_NAME,
+            'user' => DB_USER,
+            'password' => DB_PASSWORD,
+        ]
+    );
+
     // Controllers da área pública.
     $homeController = new HomeController($postRepository);
     $postController = new PostController($postRepository, $markdown, $session, $commentRepository, $csrf);
@@ -61,7 +81,7 @@ return function (Router $router, AuthMiddleware $auth, Session $session): void {
     $userRepository = new UserRepository($pdo);
 
     $authController = new AuthController($userRepository, $session, $csrf);
-    $dashboardController = new DashboardController($postRepository, $session, $csrf);
+    $dashboardController = new DashboardController($postRepository, $session, $csrf, $analytics, $backup);
     $adminPostController = new AdminPostController(
         $postRepository,
         $categoryRepository,
@@ -72,6 +92,8 @@ return function (Router $router, AuthMiddleware $auth, Session $session): void {
     );
     $adminCategoryController = new AdminCategoryController($categoryRepository, $slugger, $session, $csrf);
     $adminCommentController = new AdminCommentController($commentRepository, $postRepository, $session, $csrf);
+    $statsController = new StatsController($analytics);
+    $adminBackupController = new AdminBackupController($backup, $session, $csrf);
 
     // ------------------------------------------------------------------
     // Rotas públicas
@@ -142,7 +164,9 @@ return function (Router $router, AuthMiddleware $auth, Session $session): void {
     $router->post('/admin/comentarios/{id}/excluir', [$adminCommentController, 'destroy'], [$auth, 'handle']);
 
     // Estatísticas e backup.
-    $router->get('/admin/estatisticas', fn(Request $request) => Response::make('Rota /admin/estatisticas acessada'), [$auth, 'handle']);
-    $router->get('/admin/backup', fn(Request $request) => Response::make('Rota /admin/backup acessada'), [$auth, 'handle']);
-    $router->post('/admin/backup', fn(Request $request) => Response::make('Rota POST /admin/backup acessada'), [$auth, 'handle']);
+    $router->get('/admin/estatisticas', [$statsController, 'index'], [$auth, 'handle']);
+    $router->get('/admin/backup', [$adminBackupController, 'index'], [$auth, 'handle']);
+    $router->post('/admin/backup', [$adminBackupController, 'create'], [$auth, 'handle']);
+    $router->get('/admin/backup/download/{filename}', [$adminBackupController, 'download'], [$auth, 'handle']);
+    $router->post('/admin/backup/{filename}/excluir', [$adminBackupController, 'destroy'], [$auth, 'handle']);
 };
