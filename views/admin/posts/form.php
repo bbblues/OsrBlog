@@ -21,6 +21,7 @@
     <div class="mb-3">
         <label for="body_md" class="form-label">Conteúdo (Markdown)</label>
         <textarea name="body_md" id="body_md" class="form-control" rows="14"><?= htmlspecialchars((string) ($post['body_md'] ?? ''), ENT_QUOTES, 'UTF-8') ?></textarea>
+        <div id="cherry-markdown-container" style="height: 600px; margin-top: 0.5rem;"></div>
     </div>
 
     <div class="mb-3">
@@ -66,3 +67,37 @@
     <button type="submit" class="btn btn-primary">Salvar</button>
     <a href="/admin/posts" class="btn btn-outline-secondary">Cancelar</a>
 </form>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cherry-markdown@0.11.9/dist/cherry-markdown.min.css">
+<script src="https://cdn.jsdelivr.net/npm/cherry-markdown@0.11.9/dist/cherry-markdown.js"></script>
+<script>
+(function () {
+    var textarea = document.getElementById('body_md');
+    var form = document.querySelector('form');
+
+    // Fallback: se o Cherry não carregar, o textarea tradicional continua funcionando
+    if (typeof Cherry === 'undefined' || !textarea || !form) {
+        return;
+    }
+
+    // Inicializa o editor visual usando o conteúdo atual do textarea body_md
+    var cherry = new Cherry({
+        id: 'cherry-markdown-container',
+        value: textarea.value,
+        editor: {
+            // Ao colar HTML (ex.: copiado do Notion), converte automaticamente para Markdown
+            convertWhenPaste: true,
+            // Nome vazio impede que o textarea interno do Cherry seja enviado junto ao POST
+            name: ''
+        }
+    });
+
+    // Oculta o textarea original: o Cherry passa a ser a interface visual de edição
+    textarea.style.display = 'none';
+
+    // Sincroniza o Markdown do editor de volta ao textarea antes do envio (POST tradicional)
+    form.addEventListener('submit', function () {
+        textarea.value = cherry.getMarkdown();
+    });
+})();
+</script>
