@@ -8,6 +8,7 @@ use App\Controllers\Admin\CategoryController as AdminCategoryController;
 use App\Controllers\Admin\CommentController as AdminCommentController;
 use App\Controllers\Admin\DashboardController;
 use App\Controllers\Admin\PostController as AdminPostController;
+use App\Controllers\Admin\ProfileController;
 use App\Controllers\Admin\StatsController;
 use App\Controllers\CategoryController;
 use App\Controllers\CommentController;
@@ -81,6 +82,7 @@ return function (Router $router, AuthMiddleware $auth, Session $session): void {
     $userRepository = new UserRepository($pdo);
 
     $authController = new AuthController($userRepository, $session, $csrf);
+    $profileController = new ProfileController($userRepository, $session, $csrf);
     $dashboardController = new DashboardController($postRepository, $session, $csrf, $analytics, $backup);
     $adminPostController = new AdminPostController(
         $postRepository,
@@ -142,6 +144,10 @@ return function (Router $router, AuthMiddleware $auth, Session $session): void {
 
     // Áreas protegidas (com AuthMiddleware).
     $router->get('/admin', [$dashboardController, 'index'], [$auth, 'handle']);
+
+    // Perfil do administrador (alteração de senha).
+    $router->get('/admin/perfil', [$profileController, 'form'], [$auth, 'handle']);
+    $router->post('/admin/perfil', [$profileController, 'update'], [$auth, 'handle']);
 
     // Posts (CRUD).
     $router->get('/admin/posts', [$adminPostController, 'index'], [$auth, 'handle']);
