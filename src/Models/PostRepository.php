@@ -280,6 +280,49 @@ final class PostRepository
     }
 
     // ------------------------------------------------------------------
+    // Traduções (post_translations)
+    // ------------------------------------------------------------------
+
+    // Insere uma tradução para um post. $data deve conter: language, title, slug, summary, body_md.
+    public function saveTranslation(int $postId, array $data): void
+    {
+        $sql = 'INSERT INTO post_translations (post_id, language, title, slug, summary, body_md, created_at)
+                VALUES (:post_id, :language, :title, :slug, :summary, :body_md, NOW())';
+
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute([
+            'post_id' => $postId,
+            'language' => $data['language'],
+            'title' => $data['title'],
+            'slug' => $data['slug'],
+            'summary' => $data['summary'],
+            'body_md' => $data['body_md'],
+        ]);
+    }
+
+    // Busca a tradução de um post por idioma.
+    public function findTranslationByPostId(int $postId, string $lang): ?array
+    {
+        $sql = 'SELECT id, post_id, language, title, slug, summary, body_md, created_at
+                FROM post_translations
+                WHERE post_id = :post_id AND language = :language
+                LIMIT 1';
+
+        return $this->fetchOne($sql, ['post_id' => $postId, 'language' => $lang]);
+    }
+
+    // Busca uma tradução pelo slug (para rota pública em inglês).
+    public function findTranslationBySlug(string $slug): ?array
+    {
+        $sql = 'SELECT id, post_id, language, title, slug, summary, body_md, created_at
+                FROM post_translations
+                WHERE slug = :slug
+                LIMIT 1';
+
+        return $this->fetchOne($sql, ['slug' => $slug]);
+    }
+
+    // ------------------------------------------------------------------
     // Helpers internos
     // ------------------------------------------------------------------
 

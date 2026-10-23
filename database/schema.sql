@@ -5,6 +5,7 @@
 DROP TABLE IF EXISTS post_slug_history;
 DROP TABLE IF EXISTS comments;
 DROP TABLE IF EXISTS post_category;
+DROP TABLE IF EXISTS post_translations;
 DROP TABLE IF EXISTS posts;
 DROP TABLE IF EXISTS categories;
 DROP TABLE IF EXISTS users;
@@ -34,6 +35,19 @@ CREATE TABLE posts (
     created_at DATETIME NOT NULL,
     updated_at DATETIME NULL,
     INDEX idx_published_at (published_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE post_translations (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    post_id INT UNSIGNED NOT NULL,
+    language VARCHAR(5) NOT NULL,
+    title VARCHAR(200) NOT NULL,
+    slug VARCHAR(200) NOT NULL UNIQUE,
+    summary VARCHAR(500) NOT NULL,
+    body_md MEDIUMTEXT NOT NULL,
+    created_at DATETIME NOT NULL,
+    UNIQUE KEY idx_post_lang (post_id, language),
+    CONSTRAINT fk_translation_post FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE post_category (

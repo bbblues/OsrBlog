@@ -31,3 +31,6 @@ define('DB_PORT', $_ENV['DB_PORT'] ?? '3306');
 define('DB_NAME', $_ENV['DB_NAME'] ?? 'osr_blog');
 define('DB_USER', $_ENV['DB_USER'] ?? 'osr');
 define('DB_PASSWORD', $_ENV['DB_PASSWORD'] ?? '');
+
+// Chave da API do DeepSeek (tradução automática de posts). Opcional.
+define('DEEPSEEK_API_KEY', $_ENV['DEEPSEEK_API_KEY'] ?? '');
