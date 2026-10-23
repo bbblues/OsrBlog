@@ -1,13 +1,13 @@
-<h1 class="mb-4">Últimos posts</h1>
+<h1 class="mb-4"><?= htmlspecialchars(\App\Support\Lang::get('home.recent_posts', $lang), ENT_QUOTES, 'UTF-8') ?></h1>
 
 <?php if (empty($posts)): ?>
-    <p class="text-muted">Nenhum post publicado ainda.</p>
+    <p class="text-muted"><?= htmlspecialchars(\App\Support\Lang::get('home.no_posts', $lang), ENT_QUOTES, 'UTF-8') ?></p>
 <?php else: ?>
     <?php foreach ($posts as $post): ?>
         <article class="card mb-4">
             <div class="card-body">
                 <h2 class="h4 mb-2">
-                    <a href="/post/<?= htmlspecialchars((string) $post['slug'], ENT_QUOTES, 'UTF-8') ?>" class="text-decoration-none">
+                    <a href="<?= htmlspecialchars($prefix . '/post/' . (string) $post['slug'], ENT_QUOTES, 'UTF-8') ?>" class="text-decoration-none">
                         <?= htmlspecialchars((string) $post['title'], ENT_QUOTES, 'UTF-8') ?>
                     </a>
                 </h2>
@@ -17,7 +17,7 @@
                         &middot;
                         <?php foreach ($post['categories'] as $i => $category): ?>
                             <?php if ($i > 0): ?>, <?php endif; ?>
-                            <a href="/categoria/<?= htmlspecialchars((string) $category['slug'], ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars((string) $category['name'], ENT_QUOTES, 'UTF-8') ?></a>
+                            <a href="<?= htmlspecialchars($prefix . '/categoria/' . (string) $category['slug'], ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars((string) $category['name'], ENT_QUOTES, 'UTF-8') ?></a>
                         <?php endforeach; ?>
                     <?php endif; ?>
                 </p>

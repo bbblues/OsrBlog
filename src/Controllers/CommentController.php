@@ -24,46 +24,49 @@ final class CommentController
 
     public function store(Request $request, string $slug): Response
     {
-        $post = $this->posts->findBySlug($slug);
+        $lang = $request->lang();
+        $prefix = $lang === 'en' ? '/en' : '';
+
+        $post = $this->posts->findBySlug($slug, $lang);
 
         if ($post === null) {
-            return Response::redirect('/');
+            return Response::redirect($prefix . '/');
         }
 
         $isPublished = $post['published_at'] !== null
             && strtotime((string) $post['published_at']) <= time();
 
         if (!$isPublished) {
-            return Response::redirect('/');
+            return Response::redirect($prefix . '/');
         }
 
         // Honeypot: campo oculto que apenas bots preenchem.
         if (trim((string) $request->post('website', '')) !== '') {
-            return Response::redirect('/post/' . $slug);
+            return Response::redirect($prefix . '/post/' . $slug);
         }
 
         $name = trim((string) $request->post('author_name', ''));
         $body = trim((string) $request->post('body', ''));
 
         if ($name === '') {
-            return $this->backWithError($slug, 'Informe o seu nome.');
+            return $this->backWithError($prefix, $slug, 'Informe o seu nome.');
         }
         if (mb_strlen($name) > 80) {
-            return $this->backWithError($slug, 'O nome deve ter no máximo 80 caracteres.');
+            return $this->backWithError($prefix, $slug, 'O nome deve ter no máximo 80 caracteres.');
         }
         if ($body === '') {
-            return $this->backWithError($slug, 'O comentário não pode estar vazio.');
+            return $this->backWithError($prefix, $slug, 'O comentário não pode estar vazio.');
         }
 
         // Rejeita comentários com links (validação no servidor).
         if (preg_match('/https?:\/\/|www\./i', $body) || preg_match('/https?:\/\/|www\./i', $name)) {
-            return $this->backWithError($slug, 'Comentários não podem conter links.');
+            return $this->backWithError($prefix, $slug, 'Comentários não podem conter links.');
         }
 
         // Rate limit: 5 comentários por hora por IP.
         $ipHash = $this->ipHash();
         if ($this->comments->countRecentByIpHash($ipHash) >= 5) {
-            return $this->backWithError($slug, 'Muitos comentários enviados. Tente novamente mais tarde.');
+            return $this->backWithError($prefix, $slug, 'Muitos comentários enviados. Tente novamente mais tarde.');
         }
 
         $id = $this->comments->insert([
@@ -76,14 +79,14 @@ final class CommentController
 
         $this->session->flash('success', 'Comentário publicado!');
 
-        return Response::redirect('/post/' . $slug . '#comentario-' . $id);
+        return Response::redirect($prefix . '/post/' . $slug . '#comentario-' . $id);
     }
 
-    private function backWithError(string $slug, string $message): Response
+    private function backWithError(string $prefix, string $slug, string $message): Response
     {
         $this->session->flash('error', $message);
 
-        return Response::redirect('/post/' . $slug . '#comentar');
+        return Response::redirect($prefix . '/post/' . $slug . '#comentar');
     }
 
     // Hash SHA-256 do IP (truncado para o tamanho da coluna CHAR(16)).

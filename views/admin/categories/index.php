@@ -5,13 +5,16 @@
         <h2 class="h6 mb-3">Nova categoria</h2>
         <form method="post" action="/admin/categorias" class="row g-2">
             <?= $csrfField ?>
-            <div class="col-md-5">
+            <div class="col-md-4">
                 <input type="text" name="name" class="form-control" placeholder="Nome" maxlength="80" required>
             </div>
-            <div class="col-md-5">
+            <div class="col-md-4">
+                <input type="text" name="name_en" class="form-control" placeholder="Nome em Inglês (opcional)" maxlength="80">
+            </div>
+            <div class="col-md-3">
                 <input type="text" name="slug" class="form-control" placeholder="Slug (opcional)" pattern="[a-z0-9]+(-[a-z0-9]+)*">
             </div>
-            <div class="col-md-2">
+            <div class="col-md-1">
                 <button type="submit" class="btn btn-primary w-100">Criar</button>
             </div>
         </form>
@@ -26,13 +29,16 @@
             <div class="list-group-item">
                 <form method="post" action="/admin/categorias/<?= (int) $category['id'] ?>" class="row g-2 align-items-center">
                     <?= $csrfField ?>
-                    <div class="col-md-5">
+                    <div class="col-md-3">
                         <input type="text" name="name" class="form-control" value="<?= htmlspecialchars((string) $category['name'], ENT_QUOTES, 'UTF-8') ?>" maxlength="80" required>
                     </div>
-                    <div class="col-md-5">
+                    <div class="col-md-3">
+                        <input type="text" name="name_en" class="form-control" value="<?= htmlspecialchars((string) ($category['name_en'] ?? ''), ENT_QUOTES, 'UTF-8') ?>" placeholder="Nome em Inglês (opcional)" maxlength="80">
+                    </div>
+                    <div class="col-md-3">
                         <input type="text" name="slug" class="form-control" value="<?= htmlspecialchars((string) $category['slug'], ENT_QUOTES, 'UTF-8') ?>" pattern="[a-z0-9]+(-[a-z0-9]+)*" required>
                     </div>
-                    <div class="col-md-2 d-flex gap-2">
+                    <div class="col-md-3 d-flex gap-2">
                         <button type="submit" class="btn btn-sm btn-outline-secondary flex-fill">Salvar</button>
                         <button type="submit" formaction="/admin/categorias/<?= (int) $category['id'] ?>/excluir" formmethod="post" class="btn btn-sm btn-outline-danger" onclick="return confirm('Excluir esta categoria?');">Excluir</button>
                     </div>

@@ -48,6 +48,9 @@ final class Router
     // Despacha a requisição para a rota correspondente.
     public function dispatch(Request $request): Response
     {
+        // Detecta o idioma a partir do prefixo da URL (/en/ -> 'en'; caso contrário 'pt').
+        $request->setLang($this->detectLanguage($request->uri()));
+
         $route = $this->match($request);
 
         if ($route === null) {
@@ -87,7 +90,7 @@ final class Router
                 continue;
             }
 
-            if (preg_match($route['regex'], $request->uri(), $matches) !== 1) {
+            if (preg_match($route['regex'], $this->stripLanguagePrefix($request->uri()), $matches) !== 1) {
                 continue;
             }
 
@@ -104,6 +107,28 @@ final class Router
         }
 
         return null;
+    }
+
+    // Detecta o idioma a partir da URI: '/en' ou '/en/...' -> 'en'; caso contrário 'pt'.
+    private function detectLanguage(string $uri): string
+    {
+        return ($uri === '/en' || str_starts_with($uri, '/en/')) ? 'en' : 'pt';
+    }
+
+    // Remove o prefixo '/en' da URI para casar com os padrões de rota sem prefixo.
+    private function stripLanguagePrefix(string $uri): string
+    {
+        if ($uri === '/en') {
+            return '/';
+        }
+
+        if (str_starts_with($uri, '/en/')) {
+            $stripped = substr($uri, 3);
+
+            return $stripped === '' ? '/' : $stripped;
+        }
+
+        return $uri;
     }
 
     // Converte "/post/{slug}" em uma expressão regular com grupo nomeado.

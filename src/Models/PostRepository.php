@@ -16,9 +16,25 @@ final class PostRepository
     {
     }
 
-    // Lista posts publicados em ordem decrescente de publicação.
-    public function findPublished(int $limit, int $offset): array
+    // Lista posts publicados em ordem decrescente de publicação (PT) ou as traduções (EN).
+    public function findPublished(int $limit, int $offset, string $lang = 'pt'): array
     {
+        if ($lang === 'en') {
+            $sql = 'SELECT p.id, t.title, t.slug, t.summary, p.cover_image, p.published_at, p.created_at, p.updated_at
+                    FROM post_translations t
+                    INNER JOIN posts p ON p.id = t.post_id
+                    WHERE t.language = :language
+                      AND p.published_at IS NOT NULL AND p.published_at <= NOW()
+                    ORDER BY p.published_at DESC
+                    LIMIT :limit OFFSET :offset';
+
+            return $this->withCategories($this->fetchAll($sql, [
+                'language' => $lang,
+                'limit' => $limit,
+                'offset' => $offset,
+            ]), 'en');
+        }
+
         $sql = 'SELECT id, title, slug, summary, cover_image, published_at, created_at, updated_at
                 FROM posts
                 WHERE published_at IS NOT NULL AND published_at <= NOW()
@@ -31,8 +47,21 @@ final class PostRepository
         ]));
     }
 
-    public function countPublished(): int
+    public function countPublished(string $lang = 'pt'): int
     {
+        if ($lang === 'en') {
+            $sql = 'SELECT COUNT(*)
+                    FROM post_translations t
+                    INNER JOIN posts p ON p.id = t.post_id
+                    WHERE t.language = :language
+                      AND p.published_at IS NOT NULL AND p.published_at <= NOW()';
+
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->execute(['language' => $lang]);
+
+            return (int) $stmt->fetchColumn();
+        }
+
         $sql = 'SELECT COUNT(*) FROM posts WHERE published_at IS NOT NULL AND published_at <= NOW()';
 
         return (int) $this->pdo->query($sql)->fetchColumn();
@@ -49,9 +78,34 @@ final class PostRepository
         return $this->fetchAll($sql, []);
     }
 
-    // Busca um post pelo slug atual (qualquer status).
-    public function findBySlug(string $slug): ?array
+    // Lista todos os posts com tradução em inglês publicados (para sitemap), sem paginação.
+    public function findAllPublishedTranslations(): array
     {
+        $sql = 'SELECT p.id, t.title, t.slug, t.summary, p.published_at, p.updated_at
+                FROM post_translations t
+                INNER JOIN posts p ON p.id = t.post_id
+                WHERE t.language = :language
+                  AND p.published_at IS NOT NULL AND p.published_at <= NOW()
+                ORDER BY p.published_at DESC';
+
+        return $this->fetchAll($sql, ['language' => 'en']);
+    }
+
+    // Busca um post pelo slug atual (qualquer status), em PT ou na tradução EN.
+    public function findBySlug(string $slug, string $lang = 'pt'): ?array
+    {
+        if ($lang === 'en') {
+            $sql = 'SELECT p.id, t.title, t.slug, t.summary, t.body_md, p.cover_image, p.published_at, p.created_at, p.updated_at
+                    FROM post_translations t
+                    INNER JOIN posts p ON p.id = t.post_id
+                    WHERE t.slug = :slug AND t.language = :language
+                    LIMIT 1';
+
+            $post = $this->fetchOne($sql, ['slug' => $slug, 'language' => $lang]);
+
+            return $post === null ? null : $this->withCategories([$post], 'en')[0];
+        }
+
         $sql = 'SELECT id, title, slug, summary, body_md, cover_image, published_at, created_at, updated_at
                 FROM posts
                 WHERE slug = :slug
@@ -79,9 +133,29 @@ final class PostRepository
         return $slug === false ? null : (string) $slug;
     }
 
-    // Lista posts publicados de uma categoria.
-    public function findPublishedByCategory(string $categorySlug, int $limit, int $offset): array
+    // Lista posts publicados de uma categoria (PT) ou suas traduções (EN).
+    public function findPublishedByCategory(string $categorySlug, int $limit, int $offset, string $lang = 'pt'): array
     {
+        if ($lang === 'en') {
+            $sql = 'SELECT p.id, t.title, t.slug, t.summary, p.cover_image, p.published_at, p.created_at, p.updated_at
+                    FROM post_translations t
+                    INNER JOIN posts p ON p.id = t.post_id
+                    INNER JOIN post_category pc ON pc.post_id = p.id
+                    INNER JOIN categories c ON c.id = pc.category_id
+                    WHERE c.slug = :category_slug
+                      AND t.language = :language
+                      AND p.published_at IS NOT NULL AND p.published_at <= NOW()
+                    ORDER BY p.published_at DESC
+                    LIMIT :limit OFFSET :offset';
+
+            return $this->withCategories($this->fetchAll($sql, [
+                'category_slug' => $categorySlug,
+                'language' => $lang,
+                'limit' => $limit,
+                'offset' => $offset,
+            ]), 'en');
+        }
+
         $sql = 'SELECT p.id, p.title, p.slug, p.summary, p.cover_image, p.published_at, p.created_at, p.updated_at
                 FROM posts p
                 INNER JOIN post_category pc ON pc.post_id = p.id
@@ -98,8 +172,24 @@ final class PostRepository
         ]));
     }
 
-    public function countPublishedByCategory(string $categorySlug): int
+    public function countPublishedByCategory(string $categorySlug, string $lang = 'pt'): int
     {
+        if ($lang === 'en') {
+            $sql = 'SELECT COUNT(DISTINCT p.id)
+                    FROM post_translations t
+                    INNER JOIN posts p ON p.id = t.post_id
+                    INNER JOIN post_category pc ON pc.post_id = p.id
+                    INNER JOIN categories c ON c.id = pc.category_id
+                    WHERE c.slug = :category_slug
+                      AND t.language = :language
+                      AND p.published_at IS NOT NULL AND p.published_at <= NOW()';
+
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->execute(['category_slug' => $categorySlug, 'language' => $lang]);
+
+            return (int) $stmt->fetchColumn();
+        }
+
         $sql = 'SELECT COUNT(DISTINCT p.id)
                 FROM posts p
                 INNER JOIN post_category pc ON pc.post_id = p.id
@@ -113,17 +203,37 @@ final class PostRepository
         return (int) $stmt->fetchColumn();
     }
 
-    // Busca posts publicados por termo (título, resumo ou corpo).
-    public function searchPublished(string $query, int $limit, int $offset): array
+    // Busca posts publicados por termo (título, resumo ou corpo), em PT ou EN.
+    public function searchPublished(string $query, int $limit, int $offset, string $lang = 'pt'): array
     {
+        $like = '%' . $this->escapeLike($query) . '%';
+
+        if ($lang === 'en') {
+            $sql = 'SELECT p.id, t.title, t.slug, t.summary, p.cover_image, p.published_at, p.created_at, p.updated_at
+                    FROM post_translations t
+                    INNER JOIN posts p ON p.id = t.post_id
+                    WHERE t.language = :language
+                      AND p.published_at IS NOT NULL AND p.published_at <= NOW()
+                      AND (t.title LIKE :like_title OR t.summary LIKE :like_summary OR t.body_md LIKE :like_body)
+                    ORDER BY p.published_at DESC
+                    LIMIT :limit OFFSET :offset';
+
+            return $this->withCategories($this->fetchAll($sql, [
+                'language' => $lang,
+                'like_title' => $like,
+                'like_summary' => $like,
+                'like_body' => $like,
+                'limit' => $limit,
+                'offset' => $offset,
+            ]), 'en');
+        }
+
         $sql = 'SELECT id, title, slug, summary, cover_image, published_at, created_at, updated_at
                 FROM posts
                 WHERE published_at IS NOT NULL AND published_at <= NOW()
                   AND (title LIKE :like_title OR summary LIKE :like_summary OR body_md LIKE :like_body)
                 ORDER BY published_at DESC
                 LIMIT :limit OFFSET :offset';
-
-        $like = '%' . $this->escapeLike($query) . '%';
 
         return $this->withCategories($this->fetchAll($sql, [
             'like_title' => $like,
@@ -134,14 +244,33 @@ final class PostRepository
         ]));
     }
 
-    public function countSearchPublished(string $query): int
+    public function countSearchPublished(string $query, string $lang = 'pt'): int
     {
+        $like = '%' . $this->escapeLike($query) . '%';
+
+        if ($lang === 'en') {
+            $sql = 'SELECT COUNT(*)
+                    FROM post_translations t
+                    INNER JOIN posts p ON p.id = t.post_id
+                    WHERE t.language = :language
+                      AND p.published_at IS NOT NULL AND p.published_at <= NOW()
+                      AND (t.title LIKE :like_title OR t.summary LIKE :like_summary OR t.body_md LIKE :like_body)';
+
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->execute([
+                'language' => $lang,
+                'like_title' => $like,
+                'like_summary' => $like,
+                'like_body' => $like,
+            ]);
+
+            return (int) $stmt->fetchColumn();
+        }
+
         $sql = 'SELECT COUNT(*)
                 FROM posts
                 WHERE published_at IS NOT NULL AND published_at <= NOW()
                   AND (title LIKE :like_title OR summary LIKE :like_summary OR body_md LIKE :like_body)';
-
-        $like = '%' . $this->escapeLike($query) . '%';
 
         $stmt = $this->pdo->prepare($sql);
         $stmt->execute([
@@ -374,7 +503,7 @@ final class PostRepository
     }
 
     // Anexa as categorias a cada post (consulta única, evita N+1).
-    private function withCategories(array $posts): array
+    private function withCategories(array $posts, string $lang = 'pt'): array
     {
         if ($posts === []) {
             return $posts;
@@ -383,7 +512,7 @@ final class PostRepository
         $ids = array_values(array_map('intval', array_column($posts, 'id')));
         $placeholders = implode(',', array_fill(0, count($ids), '?'));
 
-        $sql = 'SELECT pc.post_id, c.id, c.name, c.slug
+        $sql = 'SELECT pc.post_id, c.id, c.name, c.name_en, c.slug
                 FROM post_category pc
                 INNER JOIN categories c ON c.id = pc.category_id
                 WHERE pc.post_id IN (' . $placeholders . ')
@@ -399,7 +528,7 @@ final class PostRepository
         foreach ($stmt->fetchAll() as $row) {
             $byPost[(int) $row['post_id']][] = [
                 'id' => (int) $row['id'],
-                'name' => (string) $row['name'],
+                'name' => $this->displayName($row['name'] ?? null, $row['name_en'] ?? null, $lang),
                 'slug' => (string) $row['slug'],
             ];
         }
@@ -410,6 +539,16 @@ final class PostRepository
         unset($post);
 
         return $posts;
+    }
+
+    // Retorna o nome da categoria no idioma atual, com fallback para o PT.
+    private function displayName(mixed $name, mixed $nameEn, string $lang): string
+    {
+        if ($lang === 'en' && $nameEn !== null && trim((string) $nameEn) !== '') {
+            return (string) $nameEn;
+        }
+
+        return (string) $name;
     }
 
     // Escapa os curingas do LIKE para evitar busca fora do esperado.

@@ -25,17 +25,17 @@ final class SitemapController
         $appUrl = rtrim((string) ($_ENV['APP_URL'] ?? 'http://localhost:8080'), '/');
 
         $posts = $this->posts->findAllPublished();
+        $enPosts = $this->posts->findAllPublishedTranslations();
         $categories = $this->categories->findAll();
 
         $urls = [];
 
-        // Home (usa a data do post mais recente como lastmod).
-        $urls[] = [
-            'loc' => $appUrl . '/',
-            'lastmod' => $posts !== [] ? $this->lastmod($posts[0]) : date('Y-m-d'),
-        ];
+        // Home PT e EN (lastmod = post mais recente).
+        $homeLastmod = $posts !== [] ? $this->lastmod($posts[0]) : date('Y-m-d');
+        $urls[] = ['loc' => $appUrl . '/', 'lastmod' => $homeLastmod];
+        $urls[] = ['loc' => $appUrl . '/en/', 'lastmod' => $homeLastmod];
 
-        // Posts publicados.
+        // Posts publicados (PT).
         foreach ($posts as $post) {
             $urls[] = [
                 'loc' => $appUrl . '/post/' . $post['slug'],
@@ -43,12 +43,19 @@ final class SitemapController
             ];
         }
 
-        // Categorias.
-        foreach ($categories as $category) {
+        // Posts traduzidos (EN).
+        foreach ($enPosts as $post) {
             $urls[] = [
-                'loc' => $appUrl . '/categoria/' . $category['slug'],
-                'lastmod' => substr((string) $category['created_at'], 0, 10),
+                'loc' => $appUrl . '/en/post/' . $post['slug'],
+                'lastmod' => $this->lastmod($post),
             ];
+        }
+
+        // Categorias (PT e EN).
+        foreach ($categories as $category) {
+            $lastmod = substr((string) $category['created_at'], 0, 10);
+            $urls[] = ['loc' => $appUrl . '/categoria/' . $category['slug'], 'lastmod' => $lastmod];
+            $urls[] = ['loc' => $appUrl . '/en/categoria/' . $category['slug'], 'lastmod' => $lastmod];
         }
 
         return new Response($this->renderXml($urls), 200, [

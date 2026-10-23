@@ -15,24 +15,27 @@ final class CategoryRepository
     {
     }
 
-    // Lista todas as categorias em ordem alfabética.
-    public function findAll(): array
+    // Lista todas as categorias em ordem alfabética (nome localizado pelo idioma).
+    public function findAll(string $lang = 'pt'): array
     {
-        $sql = 'SELECT id, name, slug, created_at FROM categories ORDER BY name ASC';
+        $sql = 'SELECT id, name, name_en, slug, created_at FROM categories ORDER BY name ASC';
 
-        return $this->pdo->query($sql)->fetchAll();
+        return array_map(
+            fn (array $row): array => $this->localize($row, $lang),
+            $this->pdo->query($sql)->fetchAll()
+        );
     }
 
-    public function findBySlug(string $slug): ?array
+    public function findBySlug(string $slug, string $lang = 'pt'): ?array
     {
-        $sql = 'SELECT id, name, slug, created_at FROM categories WHERE slug = :slug LIMIT 1';
+        $sql = 'SELECT id, name, name_en, slug, created_at FROM categories WHERE slug = :slug LIMIT 1';
 
         $stmt = $this->pdo->prepare($sql);
         $stmt->execute(['slug' => $slug]);
 
         $row = $stmt->fetch();
 
-        return $row === false ? null : $row;
+        return $row === false ? null : $this->localize($row, $lang);
     }
 
     // ------------------------------------------------------------------
@@ -46,7 +49,7 @@ final class CategoryRepository
 
     public function findById(int $id): ?array
     {
-        $sql = 'SELECT id, name, slug, created_at FROM categories WHERE id = :id LIMIT 1';
+        $sql = 'SELECT id, name, name_en, slug, created_at FROM categories WHERE id = :id LIMIT 1';
 
         $stmt = $this->pdo->prepare($sql);
         $stmt->execute(['id' => $id]);
@@ -58,20 +61,20 @@ final class CategoryRepository
 
     public function create(array $data): int
     {
-        $sql = 'INSERT INTO categories (name, slug, created_at) VALUES (:name, :slug, NOW())';
+        $sql = 'INSERT INTO categories (name, name_en, slug, created_at) VALUES (:name, :name_en, :slug, NOW())';
 
         $stmt = $this->pdo->prepare($sql);
-        $stmt->execute(['name' => $data['name'], 'slug' => $data['slug']]);
+        $stmt->execute(['name' => $data['name'], 'name_en' => $data['name_en'], 'slug' => $data['slug']]);
 
         return (int) $this->pdo->lastInsertId();
     }
 
     public function update(int $id, array $data): void
     {
-        $sql = 'UPDATE categories SET name = :name, slug = :slug WHERE id = :id';
+        $sql = 'UPDATE categories SET name = :name, name_en = :name_en, slug = :slug WHERE id = :id';
 
         $stmt = $this->pdo->prepare($sql);
-        $stmt->execute(['name' => $data['name'], 'slug' => $data['slug'], 'id' => $id]);
+        $stmt->execute(['name' => $data['name'], 'name_en' => $data['name_en'], 'slug' => $data['slug'], 'id' => $id]);
     }
 
     public function delete(int $id): void
@@ -95,5 +98,15 @@ final class CategoryRepository
         $stmt->execute($params);
 
         return (int) $stmt->fetchColumn() > 0;
+    }
+
+    // Substitui o nome PT pelo nome EN quando o idioma é inglês e existe tradução.
+    private function localize(array $row, string $lang): array
+    {
+        if ($lang === 'en' && isset($row['name_en']) && $row['name_en'] !== null && trim((string) $row['name_en']) !== '') {
+            $row['name'] = (string) $row['name_en'];
+        }
+
+        return $row;
     }
 }

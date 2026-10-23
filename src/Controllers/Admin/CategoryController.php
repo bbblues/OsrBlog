@@ -87,6 +87,7 @@ final class CategoryController
     private function validate(Request $request, ?int $ignoreId): ?string
     {
         $name = trim((string) $request->post('name', ''));
+        $nameEn = trim((string) $request->post('name_en', ''));
         $slug = trim((string) $request->post('slug', ''));
 
         if ($name === '') {
@@ -94,6 +95,9 @@ final class CategoryController
         }
         if (mb_strlen($name) > 80) {
             return 'O nome deve ter no máximo 80 caracteres.';
+        }
+        if ($nameEn !== '' && mb_strlen($nameEn) > 80) {
+            return 'O nome em inglês deve ter no máximo 80 caracteres.';
         }
 
         if ($slug === '') {
@@ -113,12 +117,17 @@ final class CategoryController
     private function dataFromRequest(Request $request): array
     {
         $name = trim((string) $request->post('name', ''));
+        $nameEn = trim((string) $request->post('name_en', ''));
         $slug = trim((string) $request->post('slug', ''));
 
         if ($slug === '') {
             $slug = $this->slugger->slugify($name);
         }
 
-        return ['name' => $name, 'slug' => $slug];
+        return [
+            'name' => $name,
+            'name_en' => $nameEn === '' ? null : $nameEn,
+            'slug' => $slug,
+        ];
     }
 }

@@ -9,6 +9,7 @@ use App\Core\Response;
 use App\Core\View;
 use App\Models\CategoryRepository;
 use App\Models\PostRepository;
+use App\Support\Lang;
 use App\Support\Paginator;
 
 /**
@@ -24,33 +25,40 @@ final class CategoryController
 
     public function show(Request $request, string $slug): Response
     {
-        $category = $this->categories->findBySlug($slug);
+        $lang = $request->lang();
+        $prefix = $lang === 'en' ? '/en' : '';
+
+        $category = $this->categories->findBySlug($slug, $lang);
 
         if ($category === null) {
-            return $this->notFound();
+            return $this->notFound($lang);
         }
 
-        $total = $this->posts->countPublishedByCategory($slug);
+        $baseUrl = $prefix . '/categoria/' . $slug;
+        $total = $this->posts->countPublishedByCategory($slug, $lang);
 
-        $paginator = $this->resolvePage($request, $total, '/categoria/' . $slug);
+        $paginator = $this->resolvePage($request, $total, $baseUrl);
         if ($paginator instanceof Response) {
             return $paginator;
         }
 
-        $posts = $this->posts->findPublishedByCategory($slug, $paginator->limit(), $paginator->offset());
+        $posts = $this->posts->findPublishedByCategory($slug, $paginator->limit(), $paginator->offset(), $lang);
 
         $title = (string) $category['name'] . ' — osr.blog.br';
         if ($paginator->currentPage() > 1) {
-            $title .= ' — Página ' . $paginator->currentPage();
+            $title .= ' — ' . Lang::get('common.page', $lang) . ' ' . $paginator->currentPage();
         }
 
         return View::render('public/category', [
             'title' => $title,
-            'description' => 'Posts publicados na categoria ' . $category['name'] . '.',
+            'description' => Lang::get('category.description', $lang) . ' ' . $category['name'] . '.',
             'category' => $category,
             'posts' => $posts,
             'paginator' => $paginator,
-            'baseUrl' => '/categoria/' . $slug,
+            'baseUrl' => $baseUrl,
+            'lang' => $lang,
+            'prefix' => $prefix,
+            'i18n' => ['lang' => $lang, 'ptUrl' => '/categoria/' . $slug, 'enUrl' => '/en/categoria/' . $slug],
         ]);
     }
 
@@ -74,8 +82,15 @@ final class CategoryController
         return $paginator;
     }
 
-    private function notFound(): Response
+    private function notFound(string $lang = 'pt'): Response
     {
-        return View::render('public/404', ['title' => 'Página não encontrada'])->setStatusCode(404);
+        $prefix = $lang === 'en' ? '/en' : '';
+
+        return View::render('public/404', [
+            'title' => Lang::get('error.404', $lang),
+            'lang' => $lang,
+            'prefix' => $prefix,
+            'i18n' => ['lang' => $lang, 'ptUrl' => '/', 'enUrl' => '/en/'],
+        ])->setStatusCode(404);
     }
 }

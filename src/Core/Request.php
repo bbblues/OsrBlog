@@ -9,6 +9,9 @@ namespace App\Core;
  */
 final class Request
 {
+    // Idioma atual da requisição (definido pelo Router: 'pt' ou 'en').
+    private string $lang = 'pt';
+
     /**
      * @param array<string, mixed> $query Parâmetros da query string (GET).
      * @param array<string, mixed> $post  Dados enviados no corpo (POST).
@@ -65,6 +68,27 @@ final class Request
     public function allPost(): array
     {
         return $this->post;
+    }
+
+    // Idioma atual da requisição ('pt' ou 'en').
+    public function lang(): string
+    {
+        return $this->lang;
+    }
+
+    // Define o idioma da requisição (chamado pelo Router).
+    public function setLang(string $lang): void
+    {
+        $this->lang = $lang === 'en' ? 'en' : 'pt';
+    }
+
+    // Retorna um cabeçalho HTTP da requisição (ex.: 'Accept-Language'), ou null.
+    public function header(string $name): ?string
+    {
+        $key = 'HTTP_' . strtoupper(str_replace('-', '_', $name));
+        $value = $_SERVER[$key] ?? null;
+
+        return is_string($value) ? $value : null;
     }
 
     // Extrai apenas o caminho (sem query string) da URI.

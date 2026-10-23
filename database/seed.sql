@@ -14,10 +14,10 @@ INSERT INTO users (id, username, password_hash, created_at) VALUES
     (1, 'admin', '$2y$10$GDxyi7qItbhzcm2DYUzPWe4lxze.3SyW7VIUc6o5OicPlT.O5C30K', NOW());
 
 -- 3 categorias.
-INSERT INTO categories (id, name, slug, created_at) VALUES
-    (1, 'Aventura', 'aventura', NOW()),
-    (2, 'Regras', 'regras', NOW()),
-    (3, 'Resenhas', 'resenhas', NOW());
+INSERT INTO categories (id, name, name_en, slug, created_at) VALUES
+    (1, 'Aventura', 'Adventure', 'aventura', NOW()),
+    (2, 'Regras', 'Rules', 'regras', NOW()),
+    (3, 'Resenhas', 'Reviews', 'resenhas', NOW());
 
 -- 3 posts: um publicado (passado), um rascunho (published_at NULL) e um agendado (futuro).
 INSERT INTO posts (id, title, slug, summary, body_md, cover_image, published_at, created_at, updated_at) VALUES

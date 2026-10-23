@@ -25,3 +25,11 @@ if ($ogImage !== '' && str_starts_with($ogImage, '/')) {
 <meta property="og:image" content="<?= htmlspecialchars($ogImage, ENT_QUOTES, 'UTF-8') ?>">
 <?php endif; ?>
 <link rel="canonical" href="<?= htmlspecialchars($canonical, ENT_QUOTES, 'UTF-8') ?>">
+<?php if (!empty($i18n)): ?>
+    <?php if (isset($i18n['ptUrl'])): ?><link rel="alternate" hreflang="pt" href="<?= htmlspecialchars($appUrl . $i18n['ptUrl'], ENT_QUOTES, 'UTF-8') ?>">
+<?php endif; ?>
+    <?php if (isset($i18n['enUrl'])): ?><link rel="alternate" hreflang="en" href="<?= htmlspecialchars($appUrl . $i18n['enUrl'], ENT_QUOTES, 'UTF-8') ?>">
+<?php endif; ?>
+    <?php if (isset($i18n['ptUrl'])): ?><link rel="alternate" hreflang="x-default" href="<?= htmlspecialchars($appUrl . $i18n['ptUrl'], ENT_QUOTES, 'UTF-8') ?>">
+<?php endif; ?>
+<?php endif; ?>

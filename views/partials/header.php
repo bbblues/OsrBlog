@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="<?= (($i18n['lang'] ?? 'pt') === 'en') ? 'en' : 'pt-BR' ?>">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,6 +7,26 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body>
+<?php if (!empty($i18n)): ?>
+    <?php $i18nLang = (string) ($i18n['lang'] ?? 'pt'); ?>
+    <?php $ptHref = isset($i18n['ptUrl']) ? (string) $i18n['ptUrl'] : '/'; ?>
+    <?php $enHref = isset($i18n['enUrl']) ? (string) $i18n['enUrl'] : '/en/'; ?>
+    <div class="container d-flex justify-content-end py-2">
+        <nav aria-label="<?= htmlspecialchars(\App\Support\Lang::get('lang.switcher', $i18nLang), ENT_QUOTES, 'UTF-8') ?>" class="small">
+            <?php if ($i18nLang === 'pt'): ?>
+                <span class="fw-bold text-body-secondary">🇧🇷 PT</span>
+            <?php else: ?>
+                <a href="<?= htmlspecialchars($ptHref, ENT_QUOTES, 'UTF-8') ?>" class="text-decoration-none">🇧🇷 PT</a>
+            <?php endif; ?>
+            <span class="text-body-secondary mx-1">|</span>
+            <?php if ($i18nLang === 'en'): ?>
+                <span class="fw-bold text-body-secondary">🇺🇸 EN</span>
+            <?php else: ?>
+                <a href="<?= htmlspecialchars($enHref, ENT_QUOTES, 'UTF-8') ?>" class="text-decoration-none">🇺🇸 EN</a>
+            <?php endif; ?>
+        </nav>
+    </div>
+<?php endif; ?>
 <?php if (!empty($_SESSION['user_id'])): ?>
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
     <div class="container">

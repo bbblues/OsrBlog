@@ -21,14 +21,38 @@ final class FeedController
     {
         $appUrl = rtrim((string) ($_ENV['APP_URL'] ?? 'http://localhost:8080'), '/');
 
-        $posts = $this->posts->findPublished(20, 0);
+        $items = $this->buildItems($this->posts->findPublished(20, 0, 'pt'), 'pt', $appUrl);
+        $items = array_merge($items, $this->buildItems($this->posts->findPublished(20, 0, 'en'), 'en', $appUrl));
 
-        return new Response($this->renderRss($posts, $appUrl), 200, [
+        usort($items, static fn (array $a, array $b): int => $b['ts'] <=> $a['ts']);
+        $items = array_slice($items, 0, 20);
+
+        return new Response($this->renderRss($items, $appUrl), 200, [
             'Content-Type' => 'application/rss+xml; charset=UTF-8',
         ]);
     }
 
-    private function renderRss(array $posts, string $appUrl): string
+    // Monta os itens do feed a partir de uma lista de posts (PT ou EN).
+    private function buildItems(array $posts, string $lang, string $appUrl): array
+    {
+        $prefix = $lang === 'en' ? '/en' : '';
+        $items = [];
+
+        foreach ($posts as $post) {
+            $link = $appUrl . $prefix . '/post/' . $post['slug'];
+            $items[] = [
+                'title' => (string) $post['title'],
+                'link' => $link,
+                'summary' => (string) $post['summary'],
+                'published_at' => (string) $post['published_at'],
+                'ts' => (int) strtotime((string) $post['published_at']),
+            ];
+        }
+
+        return $items;
+    }
+
+    private function renderRss(array $items, string $appUrl): string
     {
         $xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
         $xml .= "<rss version=\"2.0\">\n";
@@ -37,15 +61,13 @@ final class FeedController
         $xml .= '    <link>' . htmlspecialchars($appUrl . '/', ENT_QUOTES, 'UTF-8') . "</link>\n";
         $xml .= "    <description>Blog pessoal sobre RPG analógico (movimento OSR).</description>\n";
 
-        foreach ($posts as $post) {
-            $link = $appUrl . '/post/' . $post['slug'];
-
+        foreach ($items as $item) {
             $xml .= "    <item>\n";
-            $xml .= '      <title>' . htmlspecialchars((string) $post['title'], ENT_QUOTES, 'UTF-8') . "</title>\n";
-            $xml .= '      <link>' . htmlspecialchars($link, ENT_QUOTES, 'UTF-8') . "</link>\n";
-            $xml .= '      <guid>' . htmlspecialchars($link, ENT_QUOTES, 'UTF-8') . "</guid>\n";
-            $xml .= '      <description>' . htmlspecialchars((string) $post['summary'], ENT_QUOTES, 'UTF-8') . "</description>\n";
-            $xml .= '      <pubDate>' . $this->pubDate((string) $post['published_at']) . "</pubDate>\n";
+            $xml .= '      <title>' . htmlspecialchars((string) $item['title'], ENT_QUOTES, 'UTF-8') . "</title>\n";
+            $xml .= '      <link>' . htmlspecialchars((string) $item['link'], ENT_QUOTES, 'UTF-8') . "</link>\n";
+            $xml .= '      <guid>' . htmlspecialchars((string) $item['link'], ENT_QUOTES, 'UTF-8') . "</guid>\n";
+            $xml .= '      <description>' . htmlspecialchars((string) $item['summary'], ENT_QUOTES, 'UTF-8') . "</description>\n";
+            $xml .= '      <pubDate>' . $this->pubDate((string) $item['published_at']) . "</pubDate>\n";
             $xml .= "    </item>\n";
         }
 
