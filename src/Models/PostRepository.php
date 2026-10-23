@@ -300,6 +300,24 @@ final class PostRepository
         ]);
     }
 
+    // Atualiza uma tradução existente de um post. $data deve conter: title, slug, summary, body_md.
+    public function updateTranslation(int $postId, string $lang, array $data): void
+    {
+        $sql = 'UPDATE post_translations
+                SET title = :title, slug = :slug, summary = :summary, body_md = :body_md
+                WHERE post_id = :post_id AND language = :language';
+
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute([
+            'title' => $data['title'],
+            'slug' => $data['slug'],
+            'summary' => $data['summary'],
+            'body_md' => $data['body_md'],
+            'post_id' => $postId,
+            'language' => $lang,
+        ]);
+    }
+
     // Busca a tradução de um post por idioma.
     public function findTranslationByPostId(int $postId, string $lang): ?array
     {

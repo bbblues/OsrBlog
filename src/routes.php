@@ -34,6 +34,7 @@ use App\Support\Backup;
 use App\Support\ImageUpload;
 use App\Support\Markdown;
 use App\Support\Slugger;
+use App\Support\Translator;
 
 /**
  * Tabela de rotas da aplicação.
@@ -49,6 +50,7 @@ return function (Router $router, AuthMiddleware $auth, Session $session): void {
     $commentRepository = new CommentRepository($pdo);
     $markdown = new Markdown();
     $slugger = new Slugger($pdo);
+    $translator = new Translator();
     $imageUpload = new ImageUpload(dirname(__DIR__) . '/storage/uploads');
     $csrf = new Csrf($session);
 
@@ -88,6 +90,7 @@ return function (Router $router, AuthMiddleware $auth, Session $session): void {
         $postRepository,
         $categoryRepository,
         $slugger,
+        $translator,
         $imageUpload,
         $session,
         $csrf

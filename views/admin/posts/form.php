@@ -64,6 +64,10 @@
         <?php endif; ?>
     </div>
 
+    <div class="alert alert-info">
+        A tradução para o inglês é gerada automaticamente ao salvar este post.
+    </div>
+
     <button type="submit" class="btn btn-primary">Salvar</button>
     <a href="/admin/posts" class="btn btn-outline-secondary">Cancelar</a>
 </form>

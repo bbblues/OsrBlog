@@ -14,6 +14,7 @@ use App\Models\PostRepository;
 use App\Support\ImageUpload;
 use App\Support\Paginator;
 use App\Support\Slugger;
+use App\Support\Translator;
 
 /**
  * CRUD de posts do painel administrativo.
@@ -26,6 +27,7 @@ final class PostController
         private PostRepository $posts,
         private CategoryRepository $categories,
         private Slugger $slugger,
+        private Translator $translator,
         private ImageUpload $imageUpload,
         private Session $session,
         private Csrf $csrf
@@ -101,13 +103,14 @@ final class PostController
     // Cria um novo post.
     public function store(Request $request): Response
     {
-        $error = $this->validateAndSave($request, null);
-        if ($error !== null) {
-            $this->session->flash('error', $error);
+        $result = $this->validateAndSave($request, null);
+        if (is_string($result)) {
+            $this->session->flash('error', $result);
 
             return Response::redirect('/admin/posts/criar');
         }
 
+        $this->translateToEnglish($result, $request);
         $this->session->flash('success', 'Post criado com sucesso.');
 
         return Response::redirect('/admin/posts');
@@ -121,13 +124,14 @@ final class PostController
             return $this->notFound();
         }
 
-        $error = $this->validateAndSave($request, $post);
-        if ($error !== null) {
-            $this->session->flash('error', $error);
+        $result = $this->validateAndSave($request, $post);
+        if (is_string($result)) {
+            $this->session->flash('error', $result);
 
             return Response::redirect('/admin/posts/' . $post['id'] . '/editar');
         }
 
+        $this->translateToEnglish($result, $request);
         $this->session->flash('success', 'Post atualizado com sucesso.');
 
         return Response::redirect('/admin/posts');
@@ -147,8 +151,8 @@ final class PostController
         return Response::redirect('/admin/posts');
     }
 
-    // Valida e persiste o post (cria ou atualiza). Retorna mensagem de erro ou null.
-    private function validateAndSave(Request $request, ?array $existing): ?string
+    // Valida e persiste o post (cria ou atualiza). Retorna o id do post ou uma mensagem de erro.
+    private function validateAndSave(Request $request, ?array $existing): int|string
     {
         $title = trim((string) $request->post('title', ''));
         $summary = trim((string) $request->post('summary', ''));
@@ -209,9 +213,7 @@ final class PostController
         ];
 
         if ($existing === null) {
-            $this->posts->create($data, $categoryIds);
-
-            return null;
+            return $this->posts->create($data, $categoryIds);
         }
 
         $this->posts->update((int) $existing['id'], $data, $categoryIds);
@@ -222,7 +224,7 @@ final class PostController
             $this->posts->saveSlugHistory((int) $existing['id'], $oldSlug);
         }
 
-        return null;
+        return (int) $existing['id'];
     }
 
     // Mapeia o campo "status" do formulário para o valor de published_at.
@@ -275,6 +277,77 @@ final class PostController
     {
         return $post['published_at'] !== null
             && strtotime((string) $post['published_at']) <= time();
+    }
+
+    // Traduz o post para o inglês e persiste em post_translations.
+    // Falhas na API ou no banco nunca interrompem o fluxo: apenas geram um aviso.
+    private function translateToEnglish(int $postId, Request $request): void
+    {
+        $title = trim((string) $request->post('title', ''));
+        $summary = trim((string) $request->post('summary', ''));
+        $body = (string) $request->post('body_md', '');
+
+        try {
+            $translation = $this->translator->translatePost($title, $summary, $body);
+        } catch (\Throwable) {
+            $translation = null;
+        }
+
+        if (!is_array($translation)) {
+            $this->session->flash('warning', 'Post salvo em PT, mas a tradução automática falhou.');
+
+            return;
+        }
+
+        $lang = 'en';
+        $translatedTitle = $this->truncate((string) $translation['title'], 200);
+        $slug = $this->slugger->slugify($translatedTitle);
+        if ($slug === '') {
+            $slug = 'post-' . $postId;
+        }
+        $slug = $this->truncate($slug, 200);
+        $slug = $this->uniqueTranslationSlug($slug, $postId);
+
+        $data = [
+            'language' => $lang,
+            'title' => $translatedTitle,
+            'slug' => $slug,
+            'summary' => $this->truncate((string) $translation['summary'], 500),
+            'body_md' => (string) $translation['body_md'],
+        ];
+
+        try {
+            if ($this->posts->findTranslationByPostId($postId, $lang) === null) {
+                $this->posts->saveTranslation($postId, $data);
+            } else {
+                $this->posts->updateTranslation($postId, $lang, $data);
+            }
+        } catch (\Throwable) {
+            $this->session->flash('warning', 'Post salvo em PT, mas a tradução automática falhou.');
+        }
+    }
+
+    // Garante unicidade do slug de tradução dentro de post_translations.
+    private function uniqueTranslationSlug(string $base, int $postId): string
+    {
+        $candidate = $base;
+        $counter = 2;
+
+        while (true) {
+            $existing = $this->posts->findTranslationBySlug($candidate);
+            if ($existing === null || (int) $existing['post_id'] === $postId) {
+                return $candidate;
+            }
+
+            $candidate = $base . '-' . $counter;
+            $counter++;
+        }
+    }
+
+    // Trunca uma string para o tamanho máximo permitido pela coluna.
+    private function truncate(string $value, int $length): string
+    {
+        return mb_strlen($value) > $length ? mb_substr($value, 0, $length) : $value;
     }
 
     private function resolvePage(Request $request, int $total, string $baseUrl): Response|Paginator
